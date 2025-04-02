@@ -32,5 +32,12 @@ jobs:
           git add docs/rss.xml used_keywords.json || true
           git commit -m 'Update RSS feed' --allow-empty
           git push
+# GitHub Actions 워크플로우에 디버깅 단계 추가
+        - name: Debug workflow
+          run: |
+            pwd
+            ls -la
+            ls -la docs/ || mkdir -p docs
+          
 
         continue-on-error: true
