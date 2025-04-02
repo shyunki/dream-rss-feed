@@ -6,6 +6,8 @@ import json
 import random
 import sys
 import traceback
+import uuid
+import time
 
 # 디버깅 함수
 def log(message):
@@ -51,8 +53,14 @@ KST = timezone(timedelta(hours=9))
 now = datetime.now(KST)
 today = now.strftime('%Y-%m-%d')
 today_rfc822 = now.strftime('%a, %d %b %Y %H:%M:%S +0900')
+timestamp = int(time.time())  # Unix 타임스탬프 (캐시 방지용)
 
 log(f"📅 오늘 날짜: {today} (KST)")
+log(f"⏱️ 타임스탬프: {timestamp}")
+
+# 캐시 방지용 고유 ID 생성
+cache_buster = str(uuid.uuid4())[:8]
+log(f"🔄 캐시 방지 ID: {cache_buster}")
 
 # 키워드 목록 로드
 try:
@@ -174,18 +182,30 @@ try:
     log("🔄 RSS 피드 생성 시작...")
     fg = FeedGenerator()
     fg.title('겐이츠의 꿈해몽 피드')
-    fg.link(href='https://shyunki.github.io/dream-rss-feed/rss.xml')
-    fg.description('매일 3개의 꿈 키워드에 대한 풍부한 해몽을 제공합니다.')
+    
+    # 캐시 방지를 위한 쿼리 파라미터가 포함된 링크
+    fg.link(href=f'https://shyunki.github.io/dream-rss-feed/rss.xml?v={timestamp}')
+    
+    # 타임스탬프로 설명에 변경사항 추가
+    fg.description(f'매일 3개의 꿈 키워드에 대한 풍부한 해몽을 제공합니다. (업데이트: {today})')
     fg.language('ko-kr')
+    
+    # 매번 업데이트되는 pubDate
     fg.pubDate(today_rfc822)
+    
+    # 캐시 방지용 고유 태그 추가
+    fg.generator(f'Dream RSS Generator {cache_buster}')
     
     # 새 항목 추가
     for i, (kw, desc) in enumerate(dreams, 1):
         fe = fg.add_entry()
         fe.title(f"{today} 🌙 {kw} 꿈")
-        fe.link(href=f'https://shyunki.github.io/dream-rss-feed/rss.xml#{i}')
+        # 캐시 방지를 위해 타임스탬프 추가
+        fe.link(href=f'https://shyunki.github.io/dream-rss-feed/rss.xml#{i}_{timestamp}')
         fe.description(desc)
         fe.pubDate(today_rfc822)
+        # 고유 ID 추가
+        fe.id(f'https://shyunki.github.io/dream-rss-feed/dream/{kw}_{timestamp}_{cache_buster}')
         log(f"➕ RSS 항목 추가: {kw}")
     
     # 기존 항목 추가 (최대 30개만 유지)
@@ -202,6 +222,24 @@ try:
     fg.rss_file(rss_file)
     log(f"✅ RSS 피드가 {rss_file}에 저장되었습니다.")
     
+    # HTML 리다이렉트 페이지 생성 (선택적)
+    html_file = "docs/index.html"
+    with open(html_file, "w", encoding="utf-8") as f:
+        f.write(f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="refresh" content="0;url=./rss.xml?v={timestamp}">
+    <title>겐이츠의 꿈해몽 피드</title>
+</head>
+<body>
+    <h1>겐이츠의 꿈해몽 피드</h1>
+    <p>RSS 피드로 리다이렉트됩니다. 자동으로 이동하지 않으면 <a href="./rss.xml?v={timestamp}">여기</a>를 클릭하세요.</p>
+    <p>마지막 업데이트: {today}</p>
+</body>
+</html>""")
+    log(f"✅ HTML 리다이렉트 페이지가 {html_file}에 생성되었습니다.")
+    
     # RSS 파일 내용 확인
     if os.path.exists(rss_file):
         file_size = os.path.getsize(rss_file)
@@ -216,7 +254,9 @@ try:
     # 사용된 키워드 저장
     try:
         with open(used_keywords_file, "w", encoding="utf-8") as f:
-            json.dump(list(set(used_keywords)), f, ensure_ascii=False, indent=2)
+            # 중복 제거하여 저장
+            unique_used_keywords = list(set(used_keywords))
+            json.dump(unique_used_keywords, f, ensure_ascii=False, indent=2)
         log(f"✅ 사용된 키워드 목록이 업데이트되었습니다 (총 {len(set(used_keywords))}개)")
         
         # 파일 내용 확인
@@ -226,6 +266,12 @@ try:
     except Exception as e:
         log(f"❌ 사용된 키워드 저장 실패: {e}")
         traceback.print_exc()
+    
+    # 항상 변경사항이 있도록 더미 파일 생성
+    dummy_file = "docs/last_update.txt"
+    with open(dummy_file, "w", encoding="utf-8") as f:
+        f.write(f"Last updated: {today} {datetime.now().strftime('%H:%M:%S')}\nCache buster: {cache_buster}\n")
+    log(f"✅ 업데이트 타임스탬프 파일 생성 완료")
     
     log("🎉 모든 작업이 성공적으로 완료되었습니다!")
 except Exception as e:
