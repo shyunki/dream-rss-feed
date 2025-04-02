@@ -2,7 +2,7 @@ name: Update Dream RSS Feed
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # 매일 00:00 UTC에 실행
+    - cron: '10 15 * * *'  # 매일 한국시간 자정 10분
   workflow_dispatch:  # 수동 실행 가능
 
 # 동시성 제어
