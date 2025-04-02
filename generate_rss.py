@@ -22,12 +22,12 @@ if len(unused_keywords) < 3:
     used_keywords = []
     unused_keywords = all_keywords.copy()
 
-# Pick 3
+# Pick 3 keywords
 picked = random.sample(unused_keywords, 3)
 dreams = []
 
 for keyword in picked:
-    prompt = f"'{keyword}' 꿈에 대한 해몽을 3~4문장으로 설명해줘."
+    prompt = f"'{keyword}' 꿈에 대한 해몽을 3~4문장으로 앞에 스레드 감성으로 반말로 잘풀어서 설명해줘."
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[{"role": "user", "content": prompt}]
@@ -43,15 +43,19 @@ fg.link(href='https://shyunki.github.io/dream-rss-feed/rss.xml')
 fg.description('매일 자동 생성되는 3개의 꿈 해몽 피드입니다.')
 fg.language('ko')
 
+# 고유 타임스탬프로 링크와 타이틀 차별화
+timestamp = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
+
 for kw, desc in dreams:
     fe = fg.add_entry()
     fe.title(f"{datetime.now().strftime('%Y-%m-%d')} - {kw} 꿈 해몽")
-    fe.link(href='https://shyunki.github.io/dream-rss-feed/rss.xml')
+    fe.link(href=f'https://shyunki.github.io/dream-rss-feed/rss.xml#{kw}-{timestamp}')  # ✅ 고유 링크
     fe.description(desc)
     fe.pubDate(datetime.now(timezone.utc))
+
 # 저장
 fg.rss_file(rss_file)
 
+# Save used keywords
 with open("used_keywords.json", "w", encoding="utf-8") as f:
     json.dump(used_keywords, f, ensure_ascii=False, indent=2)
-
