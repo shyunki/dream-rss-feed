@@ -5,6 +5,11 @@ on:
     - cron: '0 0 * * *'  # 매일 00:00 UTC에 실행
   workflow_dispatch:  # 수동 실행 가능
 
+# 동시성 제어 - 같은 브랜치에 대해 한 번에 하나의 워크플로우만 실행
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false  # 진행 중인 작업 취소하지 않음
+
 jobs:
   update-feed:
     runs-on: ubuntu-latest
@@ -49,3 +54,7 @@ jobs:
           git status
           git commit -m "Update RSS feed for $(date +'%Y-%m-%d')" || echo "No changes to commit"
           git push origin HEAD:main || echo "Failed to push changes"
+        
+      # 충분한 시간 간격을 두어 Pages 빌드와 충돌 방지
+      - name: Wait for Pages build
+        run: sleep 30
