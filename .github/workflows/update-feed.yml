@@ -29,9 +29,11 @@ jobs:
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add docs/rss.xml used_keywords.json || true
-          git commit -m 'Update RSS feed' --allow-empty
-          git push
+          git status
+          git add docs/rss.xml used_keywords.json
+          git status
+          git commit -m 'Update RSS feed' || echo "No changes to commit"
+          git push || echo "Failed to push changes"
 # GitHub Actions 워크플로우에 디버깅 단계 추가
         - name: Debug workflow
           run: |
