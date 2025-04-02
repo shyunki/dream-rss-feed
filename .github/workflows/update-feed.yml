@@ -5,28 +5,38 @@ on:
     - cron: '0 0 * * *'  # 매일 00:00 UTC에 실행
   workflow_dispatch:  # 수동 실행 가능
 
-# 동시성 제어 - 같은 브랜치에 대해 한 번에 하나의 워크플로우만 실행
+# 동시성 제어
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false  # 진행 중인 작업 취소하지 않음
+  cancel-in-progress: false
 
 jobs:
   update-feed:
     runs-on: ubuntu-latest
+    # 워크플로우에 필요한 권한 명시적 부여
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+          # GitHub 토큰 명시적 설정
+          token: ${{ github.token }}
 
-      - name: Debug environment
+      - name: Setup Git Identity
         run: |
-          pwd
-          ls -la
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+      - name: Prepare directory
+        run: |
           mkdir -p docs
-          ls -la docs/
-          echo "GitHub ref: ${{ github.ref }}"
-          echo "GitHub repository: ${{ github.repository }}"
+          echo "Current directory structure:"
+          ls -la
+          echo "Docs directory:"
+          ls -la docs/ || echo "Empty docs directory"
 
       - name: Set up Python
         uses: actions/setup-python@v3
@@ -41,27 +51,47 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python generate_rss.py
 
-      - name: Check file changes
+      - name: Check generated files
         run: |
-          echo "파일 변경 확인 중..."
-          git status
-          ls -la docs/
-          echo "RSS 파일 크기: $(stat -c%s docs/rss.xml 2>/dev/null || echo '파일 없음')"
-          echo "used_keywords.json 내용:"
-          cat used_keywords.json || echo "used_keywords.json 파일이 존재하지 않음"
+          echo "확인 중..."
+          echo "RSS 파일:"
+          ls -la docs/rss.xml || echo "RSS 파일이 없습니다"
+          echo "used_keywords.json:"
+          ls -la used_keywords.json || echo "used_keywords.json 파일이 없습니다"
+          
+      - name: Git status
+        run: git status
 
-      - name: Commit and push changes
+      - name: Commit changes
         run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add -f docs/rss.xml docs/index.html docs/last_update.txt used_keywords.json || true
-          git status
-          git commit -m "Update RSS feed for $(date +'%Y-%m-%d %H:%M:%S')" || echo "No changes to commit"
-          git push origin HEAD:${{ github.ref }} || git push origin HEAD:main
+          # 변경 사항이 있는지 확인
+          if [[ -n $(git status --porcelain) ]]; then
+            echo "변경 사항 발견, 커밋 진행..."
+            git add -f docs/ used_keywords.json || echo "파일 추가 실패"
+            git status
+            git commit -m "Update RSS feed on $(date +'%Y-%m-%d %H:%M:%S')" || echo "커밋 실패"
+          else
+            echo "변경 사항 없음"
+          fi
 
-      # GitHub Pages 배포 상태 확인
-      - name: Check GitHub Pages deployment
+      - name: Push changes
+        # GITHUB_TOKEN을 사용하여 명시적 권한 부여
         run: |
-          echo "GitHub Pages 배포 대기 중..."
-          sleep 30
-          echo "GitHub Pages 배포가 시작되었을 것입니다."
+          # 현재 브랜치 확인
+          CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          echo "현재 브랜치: $CURRENT_BRANCH"
+          
+          # GitHub Token을 사용하여 푸시 (인증 문제 회피)
+          git remote set-url origin https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
+          
+          # 푸시 시도
+          git push origin $CURRENT_BRANCH || echo "푸시 실패 - 오류 로그:"
+          
+          # 실패 시 상세 진단
+          if [ $? -ne 0 ]; then
+            echo "푸시 실패, 디버깅 정보:"
+            git remote -v
+            git branch -a
+            echo "GitHub 리포지토리: ${{ github.repository }}"
+            echo "GitHub ref: ${{ github.ref }}"
+          fi
