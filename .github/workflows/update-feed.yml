@@ -25,6 +25,8 @@ jobs:
           ls -la
           mkdir -p docs
           ls -la docs/
+          echo "GitHub ref: ${{ github.ref }}"
+          echo "GitHub repository: ${{ github.repository }}"
 
       - name: Set up Python
         uses: actions/setup-python@v3
@@ -44,17 +46,22 @@ jobs:
           echo "파일 변경 확인 중..."
           git status
           ls -la docs/
+          echo "RSS 파일 크기: $(stat -c%s docs/rss.xml 2>/dev/null || echo '파일 없음')"
+          echo "used_keywords.json 내용:"
           cat used_keywords.json || echo "used_keywords.json 파일이 존재하지 않음"
 
       - name: Commit and push changes
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add docs/rss.xml used_keywords.json || true
+          git add -f docs/rss.xml docs/index.html docs/last_update.txt used_keywords.json || true
           git status
-          git commit -m "Update RSS feed for $(date +'%Y-%m-%d')" || echo "No changes to commit"
-          git push origin HEAD:main || echo "Failed to push changes"
-        
-      # 충분한 시간 간격을 두어 Pages 빌드와 충돌 방지
-      - name: Wait for Pages build
-        run: sleep 30
+          git commit -m "Update RSS feed for $(date +'%Y-%m-%d %H:%M:%S')" || echo "No changes to commit"
+          git push origin HEAD:${{ github.ref }} || git push origin HEAD:main
+
+      # GitHub Pages 배포 상태 확인
+      - name: Check GitHub Pages deployment
+        run: |
+          echo "GitHub Pages 배포 대기 중..."
+          sleep 30
+          echo "GitHub Pages 배포가 시작되었을 것입니다."
