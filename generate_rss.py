@@ -1,6 +1,6 @@
 from openai import OpenAI
 from feedgen.feed import FeedGenerator
-from datetime import datetime
+from datetime import datetime, timezone
 import os, json, random
 
 client = OpenAI()
