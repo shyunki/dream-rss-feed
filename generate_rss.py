@@ -48,8 +48,7 @@ for kw, desc in dreams:
     fe.title(f"{datetime.now().strftime('%Y-%m-%d')} - {kw} 꿈 해몽")
     fe.link(href='https://shyunki.github.io/dream-rss-feed/rss.xml')
     fe.description(desc)
-    fe.pubDate(datetime.now())
-
+    fe.pubDate(datetime.now(timezone.utc))
 # 저장
 fg.rss_file(rss_file)
 
