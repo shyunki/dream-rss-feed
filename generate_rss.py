@@ -48,7 +48,7 @@ timestamp = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
 
 for kw, desc in dreams:
     fe = fg.add_entry()
-    fe.title(f"{datetime.now().strftime('%Y-%m-%d')} - {kw} 꿈 해몽")
+    fe.title(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {kw} 꿈 해몽")
     fe.link(href=f'https://shyunki.github.io/dream-rss-feed/rss.xml#{kw}-{timestamp}')  # ✅ 고유 링크
     fe.description(desc)
     fe.pubDate(datetime.now(timezone.utc))
